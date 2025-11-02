@@ -3,183 +3,201 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Test : mot aléatoire → webhook</title>
+  <title>Test Webhook Discord — Avertissement</title>
   <style>
-    :root{font-family:Inter,system-ui,Arial,Helvetica,sans-serif}
-    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f6fbff;margin:0;padding:24px}
-    .card{width:100%;max-width:720px;background:#fff;border-radius:12px;box-shadow:0 6px 20px rgba(20,40,80,0.08);padding:28px}
-    h1{margin:0 0 10px;font-size:20px}
-    p.lead{margin:0 0 18px;color:#334155}
-    .word{font-size:34px;font-weight:700;margin:18px 0}
-    .controls{display:flex;gap:12px;flex-wrap:wrap}
-    button{padding:10px 16px;border-radius:8px;border:0;cursor:pointer}
-    .btn-primary{background:#0366d6;color:#fff}
-    .btn-ghost{background:#eef2ff;color:#0f172a}
-    .status{margin-top:14px;color:#0f172a}
-    /* Banner */
-    .banner{position:fixed;left:0;right:0;bottom:18px;margin:auto;max-width:980px;background:#fff3cd;border:1px solid #ffe08a;padding:12px 16px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.06);display:flex;gap:12px;align-items:center;z-index:999}
-    .banner p{margin:0;font-size:14px;color:#5a3d00}
-    .banner button{margin-left:auto}
-    small{color:#6b7280;display:block;margin-top:8px}
-    footer{margin-top:18px;color:#6b7280;font-size:13px}
+    :root {
+      --accent: #5865F2;
+      --bg: #fafafa;
+      --card: #ffffff;
+      --muted: #6b7280;
+    }
+    html,body { height:100%; margin:0; font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); color:#111827; }
+    .container { max-width:720px; margin:2.5rem auto; padding:1.25rem; }
+    h1 { margin:0 0 .25rem; font-size:1.5rem; }
+    p.lead { margin:0 0 1rem; color:var(--muted); }
+
+    /* Form */
+    .card { background:var(--card); border-radius:12px; padding:1rem; box-shadow:0 6px 24px rgba(15,23,42,0.06); }
+    input, textarea, button {
+      width:100%; box-sizing:border-box;
+      font-size:1rem; padding:0.75rem; margin-top:0.6rem;
+      border:1px solid #E5E7EB; border-radius:8px;
+    }
+    textarea { min-height:120px; resize:vertical; }
+    button {
+      background:var(--accent); color:white; border:none; cursor:pointer;
+      padding:0.75rem; font-weight:600; border-radius:10px;
+    }
+    button[disabled] { opacity:0.5; cursor:not-allowed; }
+
+    footer { margin-top:1rem; color:var(--muted); font-size:0.9rem; }
+
+    /* Modal / overlay */
+    .overlay {
+      position:fixed; inset:0; background:rgba(2,6,23,0.55);
+      display:flex; align-items:center; justify-content:center; z-index:9999;
+    }
+    .modal {
+      width:min(720px, 92%); background:white; border-radius:14px; padding:1.25rem;
+      box-shadow:0 10px 40px rgba(2,6,23,0.4);
+    }
+    .modal h2 { margin:0 0 .5rem; font-size:1.25rem; }
+    .modal p { margin:0 0 .75rem; color:var(--muted); line-height:1.4; }
+    .modal .controls { display:flex; gap:0.5rem; margin-top:0.75rem; flex-wrap:wrap; }
+    .btn-ghost { background:transparent; border:1px solid #E5E7EB; color:#111827; padding:.6rem .8rem; border-radius:8px; cursor:pointer; }
+    .danger { background:#ef4444; color:white; border:none; padding:.6rem .8rem; border-radius:8px; cursor:pointer; }
+
+    .checkbox-row { display:flex; gap:.5rem; align-items:center; margin-top:.5rem; }
+    .small { font-size:0.9rem; color:var(--muted); }
+    a.privacy { color:var(--accent); text-decoration:none; font-weight:600; }
+
+    @media (max-width:480px){
+      h1 { font-size:1.25rem; }
+    }
   </style>
 </head>
 <body>
-  <div class="card" role="main">
-    <h1>Test — mot aléatoire & envoi au webhook</h1>
-    <p class="lead">Génère un mot aléatoire puis clique <strong>Envoyer</strong> pour l'envoyer au webhook. L'envoi est possible uniquement si tu acceptes le partage via la bannière ci-dessous.</p>
+  <div class="container">
+    <div class="card" aria-live="polite">
+      <h1>Envoyer un message à un webhook Discord</h1>
+      <p class="lead">⚠️ Ce site est uniquement destiné à des tests légitimes. Vous devez être le propriétaire du webhook et ne pas envoyer d'informations personnelles d'autres personnes (adresses IP, données privées, etc.).</p>
 
-    <div>
-      <div><small>Mot actuel :</small></div>
-      <div id="mot" class="word">—</div>
-      <div class="controls">
-        <button id="generer" class="btn-ghost">Générer un mot</button>
-        <button id="envoyer" class="btn-primary" disabled>save</button>
-        <button id="copier" class="btn-ghost">Copier</button>
-      </div>
-      <div id="status" class="status" aria-live="polite"></div>
+      <label for="webhookUrl">URL du webhook Discord</label>
+      <input id="webhookUrl" type="url" placeholder="https://discord.com/api/webhooks/..." required />
+
+      <label for="message">Message à envoyer</label>
+      <textarea id="message" placeholder="Écris ici le message que tu veux envoyer (pas d'IP d'autres personnes)"></textarea>
+
+      <button id="sendBtn" disabled>Envoyer</button>
+
+      <p id="status" class="small" role="status" aria-live="polite"></p>
+
       <footer>
-        <small>Remplace la constante <code>WEBHOOK_URL</code> dans le script par ton webhook. Les requêtes peuvent être bloquées par CORS suivant l'URL cible / navigateur.</small>
+        <p class="small">En utilisant ce site, vous confirmez être autorisé à envoyer les données saisies et à respecter les règles de confidentialité. <a href="#" class="privacy" onclick="alert('Remplacez ce lien par votre politique de confidentialité.');return false;">Politique de confidentialité</a></p>
       </footer>
     </div>
   </div>
 
-  <!-- Bannière de consentement (s'affiche si pas encore accepté) -->
-  <div id="banner" class="banner" style="display:none" role="dialog" aria-modal="true">
-    <div>
-      <p><strong>Consentement requis — partage de données</strong></p>
-      <p style="margin-top:6px">En acceptant, tu autorises explicitement l'envoi du mot aléatoire généré sur cette page vers un webhook externe. Aucune autre donnée (IP, historique) n'est collectée par ce test. Clique <strong>Accepter</strong> pour activer le bouton d'envoi.</p>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button id="decline" class="btn-ghost">Refuser</button>
-      <button id="accept" class="btn-primary">Accepter</button>
+  <!-- Modal overlay : avertissement obligatoire -->
+  <div id="warningOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="warningTitle">
+    <div class="modal" role="document">
+      <h2 id="warningTitle">Avertissement important — Légalité & Éthique</h2>
+      <p>
+        Ce service ne doit <strong>pas</strong> être utilisé pour collecter ou transmettre des données personnelles d'autres personnes (adresses IP, identifiants, données de localisation, etc.).
+        L'envoi non autorisé d'informations personnelles peut être illégal (ex. : RGPD) et contraire à l'éthique.
+      </p>
+      <p>
+        En poursuivant vous confirmez que :
+      </p>
+      <ul class="small">
+        <li>Vous êtes le propriétaire ou vous avez l'autorisation explicite pour les données que vous enverrez.</li>
+        <li>Vous n'utiliserez pas ce site pour collecter des IP d'autres personnes sans consentement.</li>
+        <li>Vous assumez la responsabilité légale des données envoyées.</li>
+      </ul>
+
+      <div class="checkbox-row">
+        <input id="acceptCheckbox" type="checkbox" />
+        <label for="acceptCheckbox" class="small">J'ai lu et j'accepte les conditions ci-dessus.</label>
+      </div>
+
+      <div class="controls">
+        <button id="acceptBtn" class="btn-ghost" disabled>J'accepte — continuer</button>
+        <button id="declineBtn" class="danger">Je refuse — quitter</button>
+      </div>
     </div>
   </div>
 
   <script>
-    // ==== CONFIG: remplace par ton webhook pour tester ====
-    const WEBHOOK_URL = "https://discord.com/api/webhooks/1434179946636513370/xF0MOrLm2xLgVyZWgpMZYS85UFyuqfYJS-HubUMPNTJjXJkAuSe-5du5HMP0jM_TroS8";
-    // ====================================================
+    // éléments
+    const overlay = document.getElementById('warningOverlay');
+    const acceptCheckbox = document.getElementById('acceptCheckbox');
+    const acceptBtn = document.getElementById('acceptBtn');
+    const declineBtn = document.getElementById('declineBtn');
 
-    // Mot aléatoire (liste locale pour fiabilité)
-    const words = [
-      "arôme","bambou","cascade","dynamo","éclipse","fugace","galaxie","havre","ivoire","jade",
-      "krypton","légende","mistral","nimbus","opaline","prisme","quasar","rêverie","sérum","trépas",
-      "utopie","vortex","wisdom","xylophone","yuzu","zéphyr"
-    ];
+    const webhookInput = document.getElementById('webhookUrl');
+    const messageInput = document.getElementById('message');
+    const sendBtn = document.getElementById('sendBtn');
+    const status = document.getElementById('status');
 
-    const motEl = document.getElementById('mot');
-    const btnGenerer = document.getElementById('generer');
-    const btnEnvoyer = document.getElementById('envoyer');
-    const btnCopier = document.getElementById('copier');
-    const statusEl = document.getElementById('status');
-    const banner = document.getElementById('banner');
-    const acceptBtn = document.getElementById('accept');
-    const declineBtn = document.getElementById('decline');
+    // Empêche l'utilisateur d'utiliser le formulaire tant qu'il n'a pas accepté
+    let accepted = false;
 
-    // Stockage du consentement (localStorage)
-    const CONSENT_KEY = 'test_random_word_consent';
-
-    function hasConsent() {
-      return localStorage.getItem(CONSENT_KEY) === 'yes';
-    }
-
-    function setConsent(val) {
-      localStorage.setItem(CONSENT_KEY, val ? 'yes' : 'no');
-      updateBannerAndButtons();
-    }
-
-    function updateBannerAndButtons() {
-      if (hasConsent()) {
-        banner.style.display = 'none';
-        btnEnvoyer.disabled = false;
-        statusEl.textContent = "Envoi autorisé par consentement.";
-      } else {
-        banner.style.display = 'flex';
-        btnEnvoyer.disabled = true;
-        statusEl.textContent = "Envoi désactivé — consentement requis.";
-      }
-    }
-
-    // Générer un mot aléatoire
-    function genererMot() {
-      const idx = Math.floor(Math.random() * words.length);
-      const w = words[idx];
-      motEl.textContent = w;
-      statusEl.textContent = "Mot généré — prêt à envoyer si consentement donné.";
-      return w;
-    }
-
-    // Copier le mot
-    btnCopier.addEventListener('click', () => {
-      const txt = motEl.textContent;
-      if (!txt || txt === '—') return;
-      navigator.clipboard?.writeText(txt).then(() => {
-        statusEl.textContent = "Mot copié dans le presse-papiers.";
-      }).catch(() => {
-        statusEl.textContent = "Impossible de copier (permissions).";
-      });
+    acceptCheckbox.addEventListener('change', () => {
+      acceptBtn.disabled = !acceptCheckbox.checked;
     });
-
-    // Envoi au webhook (tentative directe)
-    async function envoyerAuWebhook(mot) {
-      if (!mot || mot === '—') {
-        statusEl.textContent = "Aucun mot à envoyer.";
-        return;
-      }
-      if (!hasConsent()) {
-        statusEl.textContent = "Envoi bloqué : consentement manquant.";
-        return;
-      }
-      statusEl.textContent = "Envoi en cours…";
-
-      try {
-        const payload = { content: `Mot de test : ${mot}` };
-
-        const res = await fetch(WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-          statusEl.textContent = "Envoyé ✅";
-        } else {
-          const text = await res.text().catch(()=>res.statusText);
-          statusEl.textContent = `Erreur d'envoi — statut ${res.status} : ${text}`;
-          // Astuce de debug : les erreurs CORS peuvent apparaitre en console, et le body n'est pas accessible
-        }
-      } catch (err) {
-        // Très probablement une erreur CORS ou réseau
-        console.error(err);
-        statusEl.textContent = `Erreur réseau / CORS : ${err.message || err}`;
-      }
-    }
-
-    // Événements
-    btnGenerer.addEventListener('click', () => genererMot());
-    btnEnvoyer.addEventListener('click', () => envoyerAuWebhook(motEl.textContent));
 
     acceptBtn.addEventListener('click', () => {
-      setConsent(true);
-      statusEl.textContent = "Merci — tu as accepté. Le bouton envoyer est actif.";
-    });
-    declineBtn.addEventListener('click', () => {
-      setConsent(false);
-      statusEl.textContent = "Tu as refusé le partage. Le bouton envoyer reste désactivé.";
+      if (!acceptCheckbox.checked) return;
+      accepted = true;
+      overlay.style.display = 'none';
+      sendBtn.disabled = false;
+      // focus utile
+      webhookInput.focus();
     });
 
-    // Initialisation
-    (function init(){
-      // Si jamais pas de mot, génère un mot au chargement
-      if (!motEl.textContent || motEl.textContent === '—') genererMot();
-      // Affiche la bannière si pas de consentement
-      if (!localStorage.getItem(CONSENT_KEY)) {
-        // afficher la bannière pour la première visite
-        banner.style.display = 'flex';
+    declineBtn.addEventListener('click', () => {
+      // Redirection si refus — changez l'URL si nécessaire
+      window.location.href = 'https://example.org';
+    });
+
+    // Empêche d'accéder au contenu avec tab si pas accepté (accessibilité)
+    document.addEventListener('focusin', (e) => {
+      if (!accepted && !overlay.contains(e.target)) {
+        e.stopPropagation();
+        overlay.querySelector('.modal').focus();
       }
-      updateBannerAndButtons();
-    })();
+    });
+
+    // Gestion d'envoi — formulaire basique
+    sendBtn.addEventListener('click', async () => {
+      status.textContent = '';
+      const webhook = webhookInput.value.trim();
+      const message = messageInput.value.trim();
+
+      if (!webhook || !message) {
+        status.textContent = 'Veuillez remplir l’URL du webhook et le message.';
+        return;
+      }
+
+      // Rappel de sécurité côté client : refuse si on détecte "ip" dans le message
+      // (facultatif, dissuasif)
+      const lower = message.toLowerCase();
+      if (lower.includes('ip') || lower.match(/\b\d{1,3}(\.\d{1,3}){3}\b/)) {
+        const ok = confirm("Le message semble contenir une adresse IP ou la mention 'IP'. Êtes-vous sûr(e) de vouloir l'envoyer ?\n\nRappel : n'envoyez pas d'IP d'autres personnes.");
+        if (!ok) { status.textContent = 'Envoi annulé par l’utilisateur.'; return; }
+      }
+
+      sendBtn.disabled = true;
+      status.textContent = 'Envoi en cours…';
+
+      try {
+        const resp = await fetch(webhook, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ content: message })
+        });
+
+        if (resp.ok) {
+          status.textContent = '✅ Message envoyé avec succès.';
+        } else {
+          status.textContent = `❌ Erreur lors de l'envoi (code ${resp.status}). Vérifiez l'URL du webhook.`;
+        }
+      } catch (err) {
+        status.textContent = '⚠️ Impossible d’envoyer : ' + err.message;
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+
+    // Sécurité : empêcher le rafraîchissement et d'autres tentatives d'accès JS avant acceptation
+    // (simple mesure côté client — rien ne remplace une politique côté serveur)
+    window.addEventListener('beforeunload', (e) => {
+      if (!accepted) {
+        // message par défaut pour empêcher la perte d'information ; certains navigateurs l'ignorent.
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
   </script>
 </body>
 </html>
