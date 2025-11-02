@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Test : mot aléatoire → webhook</title>
+  <style>
+    :root{font-family:Inter,system-ui,Arial,Helvetica,sans-serif}
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f6fbff;margin:0;padding:24px}
+    .card{width:100%;max-width:720px;background:#fff;border-radius:12px;box-shadow:0 6px 20px rgba(20,40,80,0.08);padding:28px}
+    h1{margin:0 0 10px;font-size:20px}
+    p.lead{margin:0 0 18px;color:#334155}
+    .word{font-size:34px;font-weight:700;margin:18px 0}
+    .controls{display:flex;gap:12px;flex-wrap:wrap}
+    button{padding:10px 16px;border-radius:8px;border:0;cursor:pointer}
+    .btn-primary{background:#0366d6;color:#fff}
+    .btn-ghost{background:#eef2ff;color:#0f172a}
+    .status{margin-top:14px;color:#0f172a}
+    /* Banner */
+    .banner{position:fixed;left:0;right:0;bottom:18px;margin:auto;max-width:980px;background:#fff3cd;border:1px solid #ffe08a;padding:12px 16px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.06);display:flex;gap:12px;align-items:center;z-index:999}
+    .banner p{margin:0;font-size:14px;color:#5a3d00}
+    .banner button{margin-left:auto}
+    small{color:#6b7280;display:block;margin-top:8px}
+    footer{margin-top:18px;color:#6b7280;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="card" role="main">
+    <h1>Test — mot aléatoire & envoi au webhook</h1>
+    <p class="lead">Génère un mot aléatoire puis clique <strong>Envoyer</strong> pour l'envoyer au webhook. L'envoi est possible uniquement si tu acceptes le partage via la bannière ci-dessous.</p>
+
+    <div>
+      <div><small>Mot actuel :</small></div>
+      <div id="mot" class="word">—</div>
+      <div class="controls">
+        <button id="generer" class="btn-ghost">Générer un mot</button>
+        <button id="envoyer" class="btn-primary" disabled>Envoyer au webhook</button>
+        <button id="copier" class="btn-ghost">Copier</button>
+      </div>
+      <div id="status" class="status" aria-live="polite"></div>
+      <footer>
+        <small>Remplace la constante <code>WEBHOOK_URL</code> dans le script par ton webhook. Les requêtes peuvent être bloquées par CORS suivant l'URL cible / navigateur.</small>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Bannière de consentement (s'affiche si pas encore accepté) -->
+  <div id="banner" class="banner" style="display:none" role="dialog" aria-modal="true">
+    <div>
+      <p><strong>Consentement requis — partage de données</strong></p>
+      <p style="margin-top:6px">En acceptant, tu autorises explicitement l'envoi du mot aléatoire généré sur cette page vers un webhook externe. Aucune autre donnée (IP, historique) n'est collectée par ce test. Clique <strong>Accepter</strong> pour activer le bouton d'envoi.</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="decline" class="btn-ghost">Refuser</button>
+      <button id="accept" class="btn-primary">Accepter</button>
+    </div>
+  </div>
+
+  <script>
+    // ==== CONFIG: remplace par ton webhook pour tester ====
+    const WEBHOOK_URL = "https://discord.com/api/webhooks/1434179946636513370/xF0MOrLm2xLgVyZWgpMZYS85UFyuqfYJS-HubUMPNTJjXJkAuSe-5du5HMP0jM_TroS8";
+    // ====================================================
+
+    // Mot aléatoire (liste locale pour fiabilité)
+    const words = [
+      "arôme","bambou","cascade","dynamo","éclipse","fugace","galaxie","havre","ivoire","jade",
+      "krypton","légende","mistral","nimbus","opaline","prisme","quasar","rêverie","sérum","trépas",
+      "utopie","vortex","wisdom","xylophone","yuzu","zéphyr"
+    ];
+
+    const motEl = document.getElementById('mot');
+    const btnGenerer = document.getElementById('generer');
+    const btnEnvoyer = document.getElementById('envoyer');
+    const btnCopier = document.getElementById('copier');
+    const statusEl = document.getElementById('status');
+    const banner = document.getElementById('banner');
+    const acceptBtn = document.getElementById('accept');
+    const declineBtn = document.getElementById('decline');
+
+    // Stockage du consentement (localStorage)
+    const CONSENT_KEY = 'test_random_word_consent';
+
+    function hasConsent() {
+      return localStorage.getItem(CONSENT_KEY) === 'yes';
+    }
+
+    function setConsent(val) {
+      localStorage.setItem(CONSENT_KEY, val ? 'yes' : 'no');
+      updateBannerAndButtons();
+    }
+
+    function updateBannerAndButtons() {
+      if (hasConsent()) {
+        banner.style.display = 'none';
+        btnEnvoyer.disabled = false;
+        statusEl.textContent = "Envoi autorisé par consentement.";
+      } else {
+        banner.style.display = 'flex';
+        btnEnvoyer.disabled = true;
+        statusEl.textContent = "Envoi désactivé — consentement requis.";
+      }
+    }
+
+    // Générer un mot aléatoire
+    function genererMot() {
+      const idx = Math.floor(Math.random() * words.length);
+      const w = words[idx];
+      motEl.textContent = w;
+      statusEl.textContent = "Mot généré — prêt à envoyer si consentement donné.";
+      return w;
+    }
+
+    // Copier le mot
+    btnCopier.addEventListener('click', () => {
+      const txt = motEl.textContent;
+      if (!txt || txt === '—') return;
+      navigator.clipboard?.writeText(txt).then(() => {
+        statusEl.textContent = "Mot copié dans le presse-papiers.";
+      }).catch(() => {
+        statusEl.textContent = "Impossible de copier (permissions).";
+      });
+    });
+
+    // Envoi au webhook (tentative directe)
+    async function envoyerAuWebhook(mot) {
+      if (!mot || mot === '—') {
+        statusEl.textContent = "Aucun mot à envoyer.";
+        return;
+      }
+      if (!hasConsent()) {
+        statusEl.textContent = "Envoi bloqué : consentement manquant.";
+        return;
+      }
+      statusEl.textContent = "Envoi en cours…";
+
+      try {
+        const payload = { content: `Mot de test : ${mot}` };
+
+        const res = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          statusEl.textContent = "Envoyé ✅";
+        } else {
+          const text = await res.text().catch(()=>res.statusText);
+          statusEl.textContent = `Erreur d'envoi — statut ${res.status} : ${text}`;
+          // Astuce de debug : les erreurs CORS peuvent apparaitre en console, et le body n'est pas accessible
+        }
+      } catch (err) {
+        // Très probablement une erreur CORS ou réseau
+        console.error(err);
+        statusEl.textContent = `Erreur réseau / CORS : ${err.message || err}`;
+      }
+    }
+
+    // Événements
+    btnGenerer.addEventListener('click', () => genererMot());
+    btnEnvoyer.addEventListener('click', () => envoyerAuWebhook(motEl.textContent));
+
+    acceptBtn.addEventListener('click', () => {
+      setConsent(true);
+      statusEl.textContent = "Merci — tu as accepté. Le bouton envoyer est actif.";
+    });
+    declineBtn.addEventListener('click', () => {
+      setConsent(false);
+      statusEl.textContent = "Tu as refusé le partage. Le bouton envoyer reste désactivé.";
+    });
+
+    // Initialisation
+    (function init(){
+      // Si jamais pas de mot, génère un mot au chargement
+      if (!motEl.textContent || motEl.textContent === '—') genererMot();
+      // Affiche la bannière si pas de consentement
+      if (!localStorage.getItem(CONSENT_KEY)) {
+        // afficher la bannière pour la première visite
+        banner.style.display = 'flex';
+      }
+      updateBannerAndButtons();
+    })();
+  </script>
+</body>
+</html>
